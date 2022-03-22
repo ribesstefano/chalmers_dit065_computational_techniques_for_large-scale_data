@@ -10,10 +10,10 @@ def time_compute_pi(k):
 
 def plot_amdhal(args):
     k_values = [2, 4, 8, 16, 32]
-    base_perf = time_compute_pi(k=1)
     theory_speedups = []
     actual_speedups = []
-
+    # Get experimental results
+    base_perf = time_compute_pi(k=1)
     for k in k_values:
         theory_sp = get_theoretical_sp(k)
         time_perf = time_compute_pi(k=1)
@@ -23,20 +23,18 @@ def plot_amdhal(args):
     # Bar plot template
     fig, ax = plt.subplots()
     bar_width = 0.35 * 2
-    index = np.arange(len(theory_speedups))
-
+    index = [x + bar_width for x in range(len(theory_speedups))]
     plt.bar(index + bar_width, (theory_speedups), bar_width, zorder=2,
             color='green', label='Theoretical Sp')
-    plt.xticks(index + bar_width, k_values, rotation=-90)
+    plt.xticks(index, k_values, rotation=-90)
     # TODO(Stefano): Add measured speedup
-
+    # ...
     plt.ylabel('Speedup')
     plt.title('Theoretical vs. Measured Speedup')
     plt.grid(which='both', axis='y', alpha=0.7, zorder=1)
     plt.tight_layout()
     # plt.savefig('amdhal_sp.pdf')
     plt.show()
-
 
 
 if __name__ == '__main__':
