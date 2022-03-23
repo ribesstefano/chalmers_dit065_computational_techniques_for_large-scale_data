@@ -20,9 +20,9 @@ def timecalculator(n):
                     number = 1)
         yield time
 
-gen = timecalculator(6)
+core_n = timecalculator(6)
 for i in range(6):
-    timer.append(next(gen))
+    timer.append(next(core_n))
 
 listingTime = np.array(timer)
 
