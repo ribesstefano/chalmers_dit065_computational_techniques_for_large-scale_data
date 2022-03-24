@@ -10,4 +10,7 @@ df -h --total
 
 How much memory does your login shell use? 
 ps auxU dalli | awk '{memory +=$4}; END {print memory }'
+
+OR
+
 ps aux | awk '{arr[$1]+=$4}; END {for (i in arr) {print i,arr[i]}}' | sort -k2
