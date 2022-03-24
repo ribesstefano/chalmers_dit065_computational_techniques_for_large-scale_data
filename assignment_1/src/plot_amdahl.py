@@ -1,58 +1,73 @@
 import argparse
 import logging
+import math
+import matplotlib.pyplot as plt
 from timeit import timeit
 from subprocess import Popen, PIPE
-
-import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
+def get_theoretical_sp(p, s):
+    MUL_CYCLES = 7
+    DIV_CYCLES = 12
+    T_par = s * (2 * MUL_CYCLES + 3 + math.pi / 4)
+    T_seq = s + 1 + DIV_CYCLES
+    return (T_seq + T_par) / (T_seq + T_par / p)
 
-def get_theoretical_sp(k):
-    return 1
 
-
-def time_compute_pi(k, s):
-    cmd = f'python ./mp_pi_montecarlo_pool.py -w {k} -s {s}'.split(' ')
+def time_compute_pi(p, s):
+    cmd = f'python3 ./mp_pi_montecarlo_pool.py -w {p} -s {s}'.split(' ')
     proc = Popen(cmd, stderr=PIPE, stdout=PIPE)
     proc.communicate()
-
+    proc.wait(timeout=360 * 2) # Two hours...
 
 def plot_amdhal(args):
-    k_values = [2, 4, 8, 16, 32]
+    # TODO(Stefano): It should be made generic enough to be re-utilized in
+    # future assignments. Maybe having the function/process/script to launch as
+    # an additional argument?
+    p_values = [2, 4, 8, 16, 32]
     theory_speedups = []
     actual_speedups = []
     steps = args.steps
     # Get experimental results
-    logger.info(f'Calculating baseline for k=1 with {steps} steps')
+    logger.info(f'Calculating baseline for p = 1 with {steps} steps')
     base_perf = timeit(stmt=f'time_compute_pi(1, {steps})',
                        setup='from __main__ import time_compute_pi',
-                       number=100)
-    logger.info(f'Baseline performance was {base_perf} for k=1')
-    for k in k_values:
-        logger.info(f'Executing for k = {k} processes with {steps} steps')
-        theory_sp = get_theoretical_sp(k)
-        time_perf = timeit(stmt=f'time_compute_pi({k}, {args.steps})',
+                       number=args.repeats)
+    logger.info(f'Baseline performance was {base_perf:.3f} ms for p = 1')
+    for p in p_values:
+        logger.info(f'Executing for p = {p} workers with {steps} steps')
+        theory_sp = get_theoretical_sp(p, args.steps)
+        time_perf = timeit(stmt=f'time_compute_pi({p}, {steps})',
                            setup='from __main__ import time_compute_pi',
-                           number=100)
-        logger.info(f'k = {k} with {steps} took {time_perf}')
+                           number=args.repeats)
+        # TODO(Stefano): Is it measured in ms? Or s?
+        logger.info(f'k = {p} with {steps} took {time_perf:.3} ms')
         actual_sp = base_perf / time_perf
         theory_speedups.append(theory_sp)
         actual_speedups.append(actual_sp)
 
     # Bar plot template
     fig, ax = plt.subplots()
-    bar_width = 0.35 * 2
-    index = [x + bar_width for x in range(len(theory_speedups))]
-    plt.bar(index + bar_width, (theory_speedups), bar_width, zorder=2,
-            color='green', label='Theoretical Sp')
-    plt.xticks(index, k_values, rotation=-90)
-    # TODO(Stefano): Add measured speedup
-    # ...
+    bar_width = 0.35
+    th_index = [x for x in range(len(p_values))]
+    ac_index = [x + bar_width for x in range(len(p_values))]
+    tx_index = [x + bar_width / 2 for x in range(len(p_values))]
+    plt.bar(th_index, theory_speedups, bar_width, label='Theoretical Sp')
+    plt.bar(ac_index, actual_speedups, bar_width, label='Measured Sp')
+    # Plot values on top of bars
+    for i in range(len(p_values)):
+        x_theory = i - bar_width / 4
+        x_actual = i + bar_width - bar_width / 4
+        ax.text(x_theory, theory_speedups[i], f'{theory_speedups[i]:.1f}')
+        ax.text(x_actual, actual_speedups[i], f'{actual_speedups[i]:.1f}')
+    plt.xticks(tx_index, [f'p = {p}' for p in p_values])
+    plt.xlabel('Number of cores p')
     plt.ylabel('Speedup')
     plt.title('Theoretical vs. Measured Speedup')
     plt.grid(which='both', axis='y', alpha=0.7, zorder=1)
+    plt.legend()
     plt.tight_layout()
     # plt.savefig('amdhal_sp.pdf')
     plt.show()
