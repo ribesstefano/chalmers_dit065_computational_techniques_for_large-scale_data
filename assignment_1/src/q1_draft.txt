@@ -1,0 +1,13 @@
+How many cores does the machine have? 
+lscpu | egrep 'Socket|Thread|NUMA|CPU\(s\)'
+
+
+What type of CPUs and what is their clock frequency?
+lscpu | egrep "Model name| MHz"
+
+How much disk is their in total and in use in the file systems /data and /datainbackup?
+df -h --total
+
+How much memory does your login shell use? 
+ps auxU dalli | awk '{memory +=$4}; END {print memory }'
+ps aux | awk '{arr[$1]+=$4}; END {for (i in arr) {print i,arr[i]}}' | sort -k2
