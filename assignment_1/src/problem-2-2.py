@@ -17,7 +17,7 @@ def get_theoretical_sp(p, s):
 
 
 def time_compute_pi(p, s):
-    cmd = f'python3 ./mp_pi_montecarlo_pool.py -w {p} -s {s}'.split(' ')
+    cmd = f'python3 ./mp-pi-montecarlo-pool.py -w {p} -s {s}'.split(' ')
     subprocess.run(cmd, shell=False)
 
 
