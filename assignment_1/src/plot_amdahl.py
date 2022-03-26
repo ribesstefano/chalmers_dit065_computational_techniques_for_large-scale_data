@@ -3,7 +3,7 @@ import logging
 import math
 import matplotlib.pyplot as plt
 from timeit import timeit
-from subprocess import Popen, PIPE
+import subprocess
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -18,12 +18,11 @@ def get_theoretical_sp(p, s):
 
 def time_compute_pi(p, s):
     cmd = f'python3 ./mp_pi_montecarlo_pool.py -w {p} -s {s}'.split(' ')
-    proc = Popen(cmd, stderr=PIPE, stdout=PIPE)
-    proc.communicate()
-    proc.wait(timeout=360 * 2) # Two hours...
+    subprocess.run(cmd, shell=False)
+
 
 def plot_amdhal(args):
-    # TODO(Stefano): It should be made generic enough to be re-utilized in
+    # TODO(Stefano): It should be made generic enough to be re-usable in
     # future assignments. Maybe having the function/process/script to launch as
     # an additional argument?
     p_values = [2, 4, 8, 16, 32]
@@ -69,8 +68,8 @@ def plot_amdhal(args):
     plt.grid(which='both', axis='y', alpha=0.7, zorder=1)
     plt.legend()
     plt.tight_layout()
-    # plt.savefig('amdhal_sp.pdf')
-    plt.show()
+    plt.savefig('amdhal_sp_theoretical.pdf')
+    # plt.show()
 
 
 if __name__ == '__main__':
