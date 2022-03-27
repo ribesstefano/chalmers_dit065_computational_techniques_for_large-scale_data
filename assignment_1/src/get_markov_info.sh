@@ -18,10 +18,11 @@ echo "Disk Amount"
 echo "================================================================================"
 df -h --total
 echo "================================================================================"
-echo "Login shell memory"
+echo "Login shell virtual memory usage (code+data+stack) in KB"
 echo "================================================================================"
-ps auxU ribes | awk '{memory +=$4}; END {print memory }'
-echo "================================================================================"
-echo "Login shell memory - detailed information"
-echo "================================================================================"
-ps aux | head -1; ps aux | grep ^ribes | more
+ps -o vsz= -p "$$"
+# ps auxU ribes | awk '{memory +=$4}; END {print memory }'
+# echo "================================================================================"
+# echo "Login shell memory - detailed information"
+# echo "================================================================================"
+# ps aux | head -1; ps aux | grep ^ribes | more
