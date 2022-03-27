@@ -6,11 +6,20 @@ from math import pi
 
 def sample_pi(init):
     """ Perform n steps of Monte Carlo simulation for estimating Pi/4.
-        Returns the number of sucesses."""
-    n, seed = init
-    random.seed(seed)
-    print("Hello from a worker")
+    :param init: A tuple or an int.  If int, the amount of steps to run for.
+    If a tuple, should be (int, int) and be amount of steps, and seed.
+    :return: the number of sucesses."""
+    # For backwards compatibility check for the type of the tuple
+    if isinstance(init, tuple):
+        n, seed = init
+        assert isinstance(seed, int), 'Seed must be an integer'
+        random.seed(seed)
+    else:
+        n = init
+        random.seed()
+    print(f"Hello from a worker with seed {seed}")
     s = 0
+    assert isinstance(n, int), 'Steps must be an integer'
     for i in range(n):
         x = random.random()
         y = random.random()
@@ -25,6 +34,7 @@ def compute_pi(args):
     n = int(args.steps / args.workers)
 
     p = multiprocessing.Pool(args.workers)
+    # Seed parameter needs to be an integer so we need to give a decent range
     seeds = [(n, random.randint(0, 2 ** 16))
              for n, seed in enumerate(range(args.workers))]
     print(seeds)
@@ -50,6 +60,6 @@ if __name__ == "__main__":
     parser.add_argument('--seed',
                         default=None,
                         type=int,
-                        help='Seed for the RNG. If None takes system default which is not repeatable')
+                        help='Seed for the PRNG. If None takes system default which is not repeatable')
     args = parser.parse_args()
     compute_pi(args)
