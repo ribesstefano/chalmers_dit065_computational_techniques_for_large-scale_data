@@ -1,3 +1,4 @@
+import datetime
 import multiprocessing  # See https://docs.python.org/3/library/multiprocessing.html
 import argparse  # See https://docs.python.org/3/library/argparse.html
 import random
@@ -43,8 +44,9 @@ def worker(tasks, results):
 
 
 def compute_pi(args):
+    start = datetime.datetime.now()
     accuracy = args.accuracy
-    print(accuracy)
+    # print(accuracy)
     seed = args.seed
     random.seed(seed) if seed is not None else random.seed()
 
@@ -71,7 +73,7 @@ def compute_pi(args):
     n_total = 0
     s_total = 0
 
-    print(" Steps\tSuccess\tPi est.\tError")
+    # print(" Steps\tSuccess\tPi est.\tError")
 
     while not finish(n_total, s_total):
         proc_args = [(n, random.randint(0, 2 ** 16))
@@ -87,14 +89,17 @@ def compute_pi(args):
             s_total += results.get()
             n_total += n
             pi_est = (4.0 * s_total) / n_total
-            print("%6d\t%7d\t%1.5f\t%1.5f" %
-                  (n_total, s_total, pi_est, pi - pi_est))
+            # print("%6d\t%7d\t%1.5f\t%1.5f" %
+            #       (n_total, s_total, pi_est, pi - pi_est))
 
     # Break out of their loops
     for i in range(args.workers):
         tasks.put(None)
 
     p.close()
+    end = datetime.datetime.now()
+
+    print(n_total // n, (end - start).total_seconds())
 
 
 if __name__ == "__main__":
