@@ -39,11 +39,11 @@ def plot_amdhal(w_values, actual_speedups, theory_speedups, filename=None,
     if show:
         plt.show()
 
-NUM_SAMPLES = 500
+NUM_SAMPLES = 10000
 K_CLUSTERS = 4
 CLASSES = 4
 ITERATIONS = 100
-PARALLEL_f = 0.92
+PARALLEL_f = 0.999
 
 global X
 global c
