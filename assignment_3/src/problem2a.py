@@ -11,13 +11,13 @@ class Summary(MRJob):
     def reducer(self, _, numbers):
         numbers = np.fromiter(numbers, dtype=float)
  
-        yield 'minimum', np.min(numbers)
-        yield 'maximum', np.max(numbers)
+        yield ('minimum', np.min(numbers))
+        yield ('maximum', np.max(numbers))
         yield ('mean', np.mean(numbers))
         yield ('standard_deviation', np.std(numbers))
 
         bins, histogram, _ = hist(numbers, bins=10)
-        yield 'hist', (bins.tolist(), histogram.tolist())
+        yield ('hist', (bins.tolist(), histogram.tolist()))
 
 if __name__ == '__main__':
     start = process_time()
