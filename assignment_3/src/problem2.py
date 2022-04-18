@@ -22,14 +22,17 @@ class Means(MRJob):
         yield None, float(val)
 
     def minmax_reducer(self, _, values):
-        memory_vals = tuple(values)
-        min_ = memory_vals[0]
-        max_ = memory_vals[-1]
-        elems = len(memory_vals)
-        mean = sum(memory_vals) / elems
-        for val in memory_vals:
-            # val as key, because it's a float, and we don't really care which node handles it
-            yield val, (min_, max_, elems, mean)
+        try:
+            memory_vals = tuple(values)
+            min_ = memory_vals[0]
+            max_ = memory_vals[-1]
+            elems = len(memory_vals)
+            mean = sum(memory_vals) / elems
+            for val in memory_vals:
+                # val as key, because it's a float, and we don't really care which node handles it
+                yield val, (min_, max_, elems, mean)
+        except ValueError as e:
+            raise e
 
     def final_mapper(self, val, value):
         min_, max_, elems, mean = value
@@ -74,4 +77,5 @@ if __name__ == '__main__':
     start = process_time()
     out = Means.run()
     processing_time = process_time() - start
-    print('time: {} s'.format(processing_time))
+    # TODO (Huw): Printing processing time seems to interfere with processing
+    # print(processing_time)
