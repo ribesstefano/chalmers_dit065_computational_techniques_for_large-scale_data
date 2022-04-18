@@ -41,25 +41,27 @@ class Means(MRJob):
         bin_size = range / BINS
         bin_ = math.floor((val - min_)/ bin_size)
 
-        yield None, (min_, max_, bin_, elems, mean, std_, val)
+        yield None, (val, min_, max_, bin_, elems, mean, std_)
 
     def output_reducer(self, _, values):
         i = 0
+        elems = 0
+        sum_ = 0
         for value in values:
-            min_, max_, bin_, elems, mean, std_, val = value
+            val, min_, max_, bin_, elems, mean, std_ = value
             # We only need to care about the descriptive statistics once
             if i == 0:
                 yield "min", min_
                 yield "max", max_
                 yield "mean", mean
-                yield "standard_deviation", std_
                 i += 1
-
+            sum_ += std_
             # Now we just need to yield the correct bin so we can count them in the next reducer
             yield bin_, 1
+        yield "std_dev", math.sqrt(sum_ / elems)
 
     def bin_output_reducer(self, key, values):
-        if key in ("min", "max", "mean", "standard_deviation"):
+        if key in ("min", "max", "mean", 'std_dev'):
             yield key, next(values)
         else:
             yield f"bin_{key}", sum(values)
