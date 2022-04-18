@@ -3,7 +3,7 @@ import time
 import multiprocessing # See https://docs.python.org/3/library/multiprocessing.html
 import numpy as np
 import matplotlib.pyplot as plt
-from problem1 import generateData, kmeansSerial, nearestCentroid
+from problem1 import generateData, nearestCentroid
 from collections import namedtuple
 
 def amdhals_law(f, w):
@@ -48,7 +48,7 @@ PARALLEL_f = 0.999
 global X
 global c
 X = generateData(NUM_SAMPLES, CLASSES)
-c = multiprocessing.Array('i', [0] * len(X))
+c = multiprocessing.Array('i', [0] * len(X), lock=False)
 
 
 def computeDistances(n_low, n_high, k, data, centroids):
@@ -75,52 +75,66 @@ def split(a, n):
 
 
 def kmeans(k, data, nr_iter=100, num_workers=1):
-    np.random.seed(1)
-
     N = len(data)
     # Choose k random data points as centroids
+    np.random.seed(1)
     rand_idx = np.random.choice(np.array(range(N)), size=k, replace=False)
     centroids = data[rand_idx]
-    logging.debug('Initial centroids\n', centroids)
-
     # The cluster index: c[i] = j indicates that i-th datum is in j-th cluster
     # NOTE: The cluster index variable, c, is made global and sharable across
     #       the workers.
     # NOTE: The multiprocessing pool is created OUTSIDE the main loop.
     global c
-    c = multiprocessing.Array('i', [0] * N)
+    c = multiprocessing.Array('i', [0] * N, lock=False)
     p = multiprocessing.Pool(num_workers)
 
-    logging.info('Iteration\tVariation\tDelta Variation')
-    total_variation = 0.0
     for j in range(nr_iter):
-        logging.debug('=== Iteration %d ===' % (j+1))
         # Assign data points to nearest centroid
-        variation = np.zeros(k)
         cluster_sizes = np.zeros(k, dtype=int)
 
         slices = list(split(list(range(N)), num_workers))
         worker_args = [(lo, hi, k, data, centroids) for (lo, hi) in slices]
         ret_list = p.starmap(computeDistances, worker_args)
         for var, c_sizes in ret_list:
-            variation += var
             cluster_sizes += c_sizes
-
-        delta_variation = -total_variation
-        total_variation = sum(variation)
-        delta_variation += total_variation
-        logging.info('%3d\t\t%f\t%f' % (j, total_variation, delta_variation))
 
         # Recompute centroids
         worker_args = [(lo, hi, k, data) for (lo, hi) in slices]
         ret_list = p.starmap(recomputeCentroids, worker_args)
         centroids = np.sum(ret_list, axis=0)
         centroids = centroids / cluster_sizes.reshape(-1, 1)
+    return np.array(c)
 
-        logging.debug(cluster_sizes)
-        logging.debug(c)
-        logging.debug(centroids)
-    return total_variation, np.array(c)
+def kmeansSerial(k, data, nr_iter=100):
+    np.random.seed(1)
+    N = len(data)
+    # The cluster index: c[i] = j indicates that i-th datum is in j-th cluster
+    c = np.zeros(N, dtype=int)
+    # ==========================================================================
+    # Candidate Parallel region:
+    # * The centroids vector is iteratively updated, meaning that the value of
+    #   centroids depends on the previous iteration. Moreover, it is used to
+    #   calculate the distances, so the iterations must be executed sequentially
+    # * c (i.e. the cluster indeces) is shared and updated at each iteration.
+    #   NOTE: Having it defined INSIDE the loop would make no differece though.
+    # ==========================================================================
+    # Choose k random data points as centroids
+    centroids = data[np.random.choice(np.array(range(N)), size=k, replace=False)]
+    for j in range(nr_iter):
+        # Assign data points to nearest centroid
+        cluster_sizes = np.zeros(k, dtype=int)
+        # ======================================================================
+        for i in range(N):
+            cluster, dist = nearestCentroid(data[i], centroids)
+            c[i] = cluster
+            cluster_sizes[cluster] += 1
+        # ======================================================================
+        # Recompute centroids
+        centroids = np.zeros((k, 2)) # This fixes the dimension to 2
+        for i in range(N):
+            centroids[c[i]] += data[i]
+        centroids = centroids / cluster_sizes.reshape(-1, 1)
+    return c
 
 
 def main():
@@ -134,14 +148,13 @@ def main():
 
     for w in workers:
         print(f'INFO. Running K-Means with {w} workers.')
+        if w == 1:
+            start_time = time.time()
+            kmeansSerial(K_CLUSTERS, X, nr_iter=ITERATIONS)
+            end_time = time.time()
+            serial_t = end_time - start_time
         start_time = time.time()
-        total_variation_seq, assignment_seq = kmeansSerial(K_CLUSTERS, X,
-                                                           ITERATIONS, w)
-        end_time = time.time()
-        serial_t = end_time - start_time
-
-        start_time = time.time()
-        total_variation, assignment = kmeans(K_CLUSTERS, X, ITERATIONS, w)
+        kmeans(K_CLUSTERS, X, ITERATIONS, w)
         end_time = time.time()
         parallel_t = end_time - start_time
 

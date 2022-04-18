@@ -159,7 +159,7 @@ def kmeans(k, data, nr_iter=100, num_workers=1):
     #       the workers.
     # NOTE: The multiprocessing pool is created OUTSIDE the main loop.
     global c
-    c = multiprocessing.Array('i', [0] * N)
+    c = multiprocessing.Array('i', [0] * N, lock=False)
     p = multiprocessing.Pool(num_workers)
 
     logging.info('Iteration\tVariation\tDelta Variation')
