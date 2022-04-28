@@ -1,3 +1,4 @@
 pyspark
 mrjob
 matplotlib
+findspark
