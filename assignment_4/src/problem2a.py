@@ -1,3 +1,5 @@
+import argparse
+import datetime
 import math
 from operator import add
 
@@ -7,8 +9,8 @@ findspark.init()
 import pyspark
 
 
-def main(path, cores):
-    sc = pyspark.SparkContext(appName="Assignment4", master=f'local[{cores}]')
+def main(path, context, cores):
+    sc = pyspark.SparkContext(appName="Assignment4", master=f'{context}[{cores}]')
     BINS = 10
 
     dist_file = sc.textFile(path)
@@ -71,11 +73,23 @@ def main(path, cores):
 
 
 if __name__ == '__main__':
-    import datetime
+
     start = datetime.datetime.now()
     # TODO (Huw): Add in argparse for datafile path and cores
-    path = 'data/data-assignment-3-1M.dat'
-    cores = 4
-    main(path, cores)
+    path = 'data/data-assignment-3-10M.dat'
+
     print((datetime.datetime.now() - start).seconds)
 
+    parser = argparse.ArgumentParser(description='Using PySpark to obtain descriptive statistics')
+    parser.add_argument('filename')
+    parser.add_argument('--num-cores',
+                        default='4',
+                        type=int,
+                        help='How many cores should be used for application')
+    parser.add_argument('--context', '-r',
+                        default='local',
+                        type=str,
+                        help='Number of steps in the Monte Carlo simulation')
+
+    args = parser.parse_args()
+    main(args.filename, args.context, args.num_cores)
