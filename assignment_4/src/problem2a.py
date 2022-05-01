@@ -1,3 +1,5 @@
+import argparse
+import datetime
 import math
 from operator import add
 
@@ -5,11 +7,21 @@ import findspark
 findspark.init()
 
 import pyspark
+from pyspark import SparkContext
+from pyspark import SparkConf
+
+BINS = 10
+
+def main(path, context, cores):
+
+    conf = SparkConf()
+    conf.setMaster("local[16]")
+    conf.setAppName("your-spark-app")
+    conf.set("spark.local.dir", "/data/tmp/")
+
+    sc = SparkContext.getOrCreate(conf)
 
 
-def main(path, cores):
-    sc = pyspark.SparkContext(appName="Assignment4", master=f'local[{cores}]')
-    BINS = 10
 
     dist_file = sc.textFile(path)
     values = dist_file.map(lambda l: l.split('\t')) \
@@ -71,11 +83,23 @@ def main(path, cores):
 
 
 if __name__ == '__main__':
-    import datetime
+
     start = datetime.datetime.now()
     # TODO (Huw): Add in argparse for datafile path and cores
-    path = 'data/data-assignment-3-1M.dat'
-    cores = 4
-    main(path, cores)
+    path = 'data/data-assignment-3-10M.dat'
+
     print((datetime.datetime.now() - start).seconds)
 
+    parser = argparse.ArgumentParser(description='Using PySpark to obtain descriptive statistics')
+    parser.add_argument('filename')
+    parser.add_argument('--num-cores',
+                        default='4',
+                        type=int,
+                        help='How many cores should be used for application')
+    parser.add_argument('--runner', '-r',
+                        default='local',
+                        type=str,
+                        help='Text to include in instantiating the SparkContext')
+
+    args = parser.parse_args()
+    main(args.filename, args.context, args.num_cores)
