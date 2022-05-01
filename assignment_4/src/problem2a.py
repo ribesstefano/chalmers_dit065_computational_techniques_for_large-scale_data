@@ -89,7 +89,7 @@ if __name__ == '__main__':
     parser.add_argument('--context', '-r',
                         default='local',
                         type=str,
-                        help='Number of steps in the Monte Carlo simulation')
+                        help='Text to include in instantiating the SparkContext')
 
     args = parser.parse_args()
     main(args.filename, args.context, args.num_cores)
