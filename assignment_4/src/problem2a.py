@@ -7,11 +7,21 @@ import findspark
 findspark.init()
 
 import pyspark
+from pyspark import SparkContext
+from pyspark import SparkConf
 
+BINS = 10
 
 def main(path, context, cores):
-    sc = pyspark.SparkContext(appName="Assignment4", master=f'{context}[{cores}]')
-    BINS = 10
+
+    conf = SparkConf()
+    conf.setMaster("local[16]")
+    conf.setAppName("your-spark-app")
+    conf.set("spark.local.dir", "/data/tmp/")
+
+    sc = SparkContext.getOrCreate(conf)
+
+
 
     dist_file = sc.textFile(path)
     values = dist_file.map(lambda l: l.split('\t')) \
@@ -86,7 +96,7 @@ if __name__ == '__main__':
                         default='4',
                         type=int,
                         help='How many cores should be used for application')
-    parser.add_argument('--context', '-r',
+    parser.add_argument('--runner', '-r',
                         default='local',
                         type=str,
                         help='Text to include in instantiating the SparkContext')
