@@ -49,12 +49,33 @@ def main(path, context, cores):
     # Since we know the amount in each bin, we can figure out which bin the
     # median is in, which means smaller sort
     bins_list = bins.collect()
+    i = 0
+    bins_sum = 0
+    for i, val in bins_list:
+        tmp = bins_sum + val
+        if tmp < count / 2:
+            i += 1
+            bins_sum = tmp
+        else:
+            break
+
+    median_bin_low = low + (bin_size * i)
+    median_bin_high = median_bin_low + bin_size
+
+    # TODO (Huw): Can we filter the collect to be a smaller list?
+    median_bin_values = values \
+        .filter(lambda x: x > median_bin_low and x < median_bin_high) \
+        .sortBy(lambda x: x) \
+        .collect()
+
+    median = median_bin_values[(count // 2) - bins_sum]
 
     output = f"The following statistics were obtained:\n" \
              f"Mean: {mean}\n" \
              f"Std Dev: {std_dev}\n" \
              f"Min: {low}\n" \
              f"Max: {high}\n" \
+             f"Median: {median}\n" \
              f"The distribution of the bins was:\n"
 
     output += '\n'.join([f'Bin {int(i)}: {val}' for i, val in bins_list])
