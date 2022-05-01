@@ -40,16 +40,16 @@ class KMeans(MRJob):
         self.centroids = [Point(*c) for c in loadCentroids(filename)]
 
     def mapper(self, _, line):
-        # For min/max we need to process on the same node, so use None as a key
-        # Return N tuples: (cluster, point)
+        # Returns tuples: <cluster, point>
         x, y = line.split('\t')
         x, y = float(x), float(y)
         cluster, _ = nearestCentroid(Point(x, y), self.centroids)
         yield cluster, (x, y)
 
     def reducer(self, key, values):
-        # Receives tuples: (cluster, point), meaning that for each centroid,
-        # i.e. key, there's a list of data value to average.
+        # Receives tuples: <cluster, list of points belonging to it>, meaning
+        # that for each centroid, i.e. key, there's a list of data values to
+        # average.
         centroid_x, centroid_y = 0, 0
         for cluster_size, (datum_x, datum_y) in enumerate(values):
             centroid_x += datum_x
