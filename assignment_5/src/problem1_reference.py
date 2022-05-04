@@ -23,6 +23,8 @@ def main(sample_file):
     # ==========================================================================
     # Clean-up and word counter
     # ==========================================================================
+    # Does using a sorted set on each line yields the same results? 
+    test_set = set()
     word_counter = Counter()
     with open(sample_file, 'r') as f:
         for line in f:
@@ -30,23 +32,28 @@ def main(sample_file):
             cleaned_line = regex.sub('', line.lower())
             words_in_line = cleaned_line.split(' ')
             word_counter.update(words_in_line)
+
+            # Testing sorting on each line...
+            unique_sorted_in_line = sorted(set(words_in_line))
+            for w1, w2 in zip(unique_sorted_in_line, unique_sorted_in_line[1:]):
+                test_set.add(os.path.commonprefix([w1, w2]))
     # ==========================================================================
-    # Number of unique words
+    # Get unique words and their number
     # ==========================================================================
-    num_unique_words = len(list(word_counter))
-    print(f'num_words\t{len(list(word_counter.elements()))}')
-    print(f'num_unique_words\t{num_unique_words}')
+    words = list(word_counter.elements())
+    print(f'num_words\t{len(words)}')
+    unique_words = list(word_counter)
+    print(f'num_unique_words\t{len(unique_words)}')
     # ==========================================================================
     # Average word length
     # ==========================================================================
-    words = list(word_counter.elements())
     avg_len = sum(map(len, words)) / len(words)
     print(f'avg_word_len\t{avg_len}')
     # ==========================================================================
     # Calculate avg. prefix length
     # ==========================================================================
     # 0. Sort words
-    sorted_words = sorted(words)
+    sorted_words = sorted(unique_words)
     # 1. Make a set to avoid repetitions
     common_prefixes = set()
     # 2. Loop over each pair of consecutive words and add common prefix to set
@@ -59,6 +66,12 @@ def main(sample_file):
     # 4. Divide the accumulator by the number of found prefixes, i.e. len(set)
     avg_len /= len(common_prefixes)
     print(f'avg_prefix_len\t{avg_len}')
+
+    # Checking and comparing the analysis on each line...
+    avg_len_test = sum(map(len, test_set))
+    avg_len_test /= len(test_set)
+    print(f'avg_prefix_len\t{avg_len_test} ({"not " if avg_len_test != avg_len else ""}matching)')
+
 
 if __name__ == '__main__':
     data_dir = '/data/2022-DIT065-DAT470/gutenberg/'
