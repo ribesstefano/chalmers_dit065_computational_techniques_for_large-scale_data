@@ -47,16 +47,16 @@ def main(sample_file):
             words_in_line = cleaned_line.split(' ')
             word_counter.update(words_in_line)
 
-            # Testing sorting on each line...
-            unique_sorted_in_line = sorted(set(words_in_line))
-            for w1, w2 in zip(unique_sorted_in_line, unique_sorted_in_line[1:]):
-                prefix = os.path.commonprefix([w1, w2])
-                test_set.add(prefix)
-                prefix_counter.update(prefix)
-            # tmp = test_set.copy()
-            # for w in unique_sorted_in_line:
-            #     for prefix in tmp:
-            #         test_set.add(os.path.commonprefix([w, prefix]))
+            # # Testing sorting on each line...
+            # unique_sorted_in_line = sorted(set(words_in_line))
+            # for w1, w2 in zip(unique_sorted_in_line, unique_sorted_in_line[1:]):
+            #     prefix = os.path.commonprefix([w1, w2])
+            #     test_set.add(prefix)
+            #     prefix_counter.update(prefix)
+            # # tmp = test_set.copy()
+            # # for w in unique_sorted_in_line:
+            # #     for prefix in tmp:
+            # #         test_set.add(os.path.commonprefix([w, prefix]))
             i += 1
             if i == max_lines:
                 break
@@ -70,8 +70,8 @@ def main(sample_file):
     # ==========================================================================
     # Average word length
     # ==========================================================================
-    avg_len = sum(map(len, words)) / len(words)
-    print(f'avg_word_len\t{avg_len}')
+    avg_word_len = sum(map(len, words)) / len(words)
+    print(f'avg_word_len\t{avg_word_len}')
     # ==========================================================================
     # Calculate avg. prefix length
     # ==========================================================================
@@ -110,17 +110,20 @@ def main(sample_file):
     # 1. Eliminate substrings (i.e. prefix candidates) with count less than 2
     #    (we need to analyze the SHARED prefixes afterall)
     prefix_counter = Counter({k: c for k, c in prefix_counter.items() if c > 1})
-    # 2. Remove all shared sub-prefixes with equal count
+    # 2. Remove all shared/common substrings (i.e. prefix candidates) with equal
+    #    count
     prefixes = list(prefix_counter)
     for prefix, _ in prefix_counter.items():
         for i in range(len(prefix)):
             if prefix[:i] in prefix_counter and prefix_counter[prefix] == prefix_counter[prefix[:i]] and prefix[:i] in prefixes:
                 prefixes.remove(prefix[:i])
-    # 3. Get average length
+    # 3. Get average length of the remaining prefixes (i.e. the prefixes are
+    #    what's left from the previous step)
     avg_len_test = sum(map(len, prefixes))
     avg_len_test /= len(prefixes) + 1 # NOTE: Account for the '' shared prefix
     matching = 'not matching' if avg_len_test != avg_len else 'matching'
     print(f'avg_prefix_len\t{avg_len_test} ({matching}) [Huw"s method]')
+    return avg_len_test, len(unique_words), avg_word_len
 
 
 if __name__ == '__main__':

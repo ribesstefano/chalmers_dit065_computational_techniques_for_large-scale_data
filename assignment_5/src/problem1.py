@@ -1,80 +1,120 @@
 """
-Problem 1 (5 pt): To decide the amount of memory needed for storing all words
-(i.e. strings only containing the letters a-z) appearing in a large text in a
-trie, compute the average length of shared prefixes between consecutive words in
-a sorted list of unique words from the text. For example for the text
-"Barney's barn is burning", the sorted list of words consists of barn, barneys
-(removing any characters not in a-z), burning, is (note that case is ignored)
-and the shared prefixes are barn, b, "" with an average of (4+1+0) / 3, in
-particular: {len('barn'): 4, len('b'): 1, len(''): 0}. Implement a solution
-using PySpark (or MrJob at your discretion) returning the average length of the
-prefixes, the total number of unique words and the average word length. Hint: Do
-not use use a sort on all words in the text (or external sort programs).  There
-is text data on all machines available at /data/2022-DIT065-DAT470/gutenberg/,
-e.g. /data/2022-DIT065-DAT470/gutenberg/060/06049.txt.
+Problem 1 (5 pt):
+
+To decide the amount of memory needed for storing all words (i.e. strings only
+containing the letters a-z) appearing in a large text in a trie, compute the
+average length of shared prefixes between consecutive words in a sorted list of
+unique words from the text.
+
+For example for the text "Barney's barn is burning", the sorted list of words
+consists of barn, barneys (removing any characters not in a-z), burning, is
+(note that case is ignored) and the shared prefixes are barn, b, "" with an
+average of (4+1+0) / 3, in particular: {len('barn'): 4, len('b'): 1, len(''):
+0}.
+
+Implement a solution using PySpark (or MrJob at your discretion) returning the
+average length of the prefixes, the total number of unique words and the average
+word length.
+
+Hint: Do not use use a sort on all words in the text (or external sort
+programs).  There is text data on all machines available at
+/data/2022-DIT065-DAT470/gutenberg/, e.g.
+/data/2022-DIT065-DAT470/gutenberg/060/06049.txt.
+
+The professor has been advising to divide the task, and sort it in pieces rather
+than sorting them at once.
 """
+import argparse
+import datetime
 import math
-from math import sqrt
-from mrjob.job import MRJob, MRStep
-from collections import namedtuple
-from operator import itemgetter
+import os
+import re
+from collections import Counter
+import operator
+from operator import add
 
-Point = namedtuple('Point', 'x y')
+import findspark
+findspark.init()
 
-def nearestCentroid(datum, centroids):
-    # dist = np.linalg.norm(centroids - datum, axis=1)
-    # return np.argmin(dist), np.min(dist)
-    dists = []
-    for c in centroids:
-        dists.append(sqrt((datum.x - c.x)**2 + (datum.y - c.y)**2))
-    return min(enumerate(dists), key=itemgetter(1))
+import pyspark
+from pyspark import SparkContext
+from pyspark import SparkConf
 
-def loadCentroids(filename):
-    centroids = []
-    with open(filename, 'r') as f:
-        for line in f:
-            x, y = line.split('\t')
-            centroids.append([float(x), float(y)])
-    return centroids
+BINS = 10
 
-class KMeans(MRJob):
+def main(args):
+    path, context, cores = args.filename, args.runner, args.num_cores
+    # Config and start Spark
+    conf = SparkConf()
+    conf.setMaster('local[16]')
+    conf.setAppName('your-spark-app')
+    conf.set('spark.local.dir', '/data/tmp/')
+    sc = SparkContext.getOrCreate(conf)
 
-    def steps(self):
-        return [
-            MRStep(mapper_init=self.mapper_init, mapper=self.mapper,
-                   reducer=self.reducer),
-        ]
+    dist_file = sc.textFile(args.filename)
+    regex = re.compile('[^a-zA-Z ]')
 
-    def configure_args(self):
-        super(KMeans, self).configure_args()
-        self.add_file_arg('--centroids',
-            help='File containing centroid values, one per line.')
+    # TODO(Stefano): The reduce is merging the sets, but it's terribly slow...
+    unique_words = dist_file.map(lambda line: regex.sub('', line.lower()).split(' ')) \
+                            .map(lambda word_list: set(word_list)) \
+                            .reduce(operator.or_)
 
-    def mapper_init(self):
-        filename = self.options.centroids
-        self.centroids = [Point(*c) for c in loadCentroids(filename)]
+    # unique_words_list = unique_words # .collect()
+    print(unique_words)
 
-    def mapper(self, _, line):
-        # Returns tuples: <cluster, point>
-        x, y = line.split('\t')
-        x, y = float(x), float(y)
-        cluster, _ = nearestCentroid(Point(x, y), self.centroids)
-        yield cluster, (x, y)
+    # values = dist_file.map(lambda l: l.split('\t')) \
+    #     .map(lambda t: float(t[2]))
 
-    def reducer(self, key, values):
-        # Receives tuples: <cluster, list of points belonging to it>, meaning
-        # that for each centroid, i.e. key, there's a list of data values to
-        # average.
-        centroid_x, centroid_y = 0, 0
-        for cluster_size, (datum_x, datum_y) in enumerate(values):
-            centroid_x += datum_x
-            centroid_y += datum_y
-        centroid_x = centroid_x / (cluster_size + 1)
-        centroid_y = centroid_y / (cluster_size + 1)
-        # yield key, (centroid_x, centroid_y)
-        yield centroid_x, centroid_y
+    # low = values.min()
+    # high = values.max()
+
+    # count = values.count()
+    # sum_ = values.sum()
+    # mean = sum_ / count
+
+    # variance_sum = values\
+    #     .map(lambda x: (x - mean) ** 2) \
+    #     .reduce(add)
+
+    # std_dev = math.sqrt(variance_sum / count)
+
+    # bin_size = (high - low) / BINS
+    # bins = values \
+    #     .map(lambda v: ((v - low) // bin_size, 1)) \
+    #     .reduceByKey(add)\
+    #     .sortByKey()
+
+    # # Since we know the amount in each bin, we can figure out which bin the
+    # # median is in, which means smaller sort
+    # bins_list = bins.collect()
+
+    # output = f"The following statistics were obtained:\n" \
+    #          f"Mean: {mean}\n" \
+    #          f"Std Dev: {std_dev}\n" \
+    #          f"Min: {low}\n" \
+    #          f"Max: {high}\n" \
+    #          f"The distribution of the bins was:\n"
+
+    # output += '\n'.join([f'Bin {int(i)}: {val}' for i, val in bins_list])
+    # print(output)
 
 
 if __name__ == '__main__':
-    # Assume that the data comes from stdin, which is default for MRJob
-    KMeans.run()
+    data_dir = '/data/2022-DIT065-DAT470/gutenberg/'
+    sample_file = data_dir + '060/06049.txt'
+
+    parser = argparse.ArgumentParser(description='Using PySpark to obtain descriptive statistics')
+    parser.add_argument('--num-cores',
+                        default='4',
+                        type=int,
+                        help='How many cores should be used for application')
+    parser.add_argument('--runner', '-r',
+                        default='local',
+                        type=str,
+                        help='Text to include in instantiating the SparkContext')
+    parser.add_argument('--filename',
+                        default=sample_file,
+                        type=str,
+                        help=f'Text file to process. Default: {sample_file}')
+    args = parser.parse_args()
+    main(args)
