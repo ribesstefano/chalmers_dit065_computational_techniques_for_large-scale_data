@@ -1,12 +1,10 @@
 from collections import defaultdict
 
 import argparse
-
-import numpy as np
 from pybloom_live import BloomFilter
 
 RECORDS = 1000000000
-ERROR_RATE = 0.0001
+ERROR_RATE = 0.0000000001
 
 
 def main(args):
@@ -47,24 +45,6 @@ if __name__ == '__main__':
                         type=float,
                         default=ERROR_RATE,
                         help='What false-positive rate is acceptable for the bloom filter')
-    parser.add_argument('--memory', '-m',
-                        type=int,
-                        required=False,
-                        help='If there is a memory constraint, specify here. --error-rate is ignored if this is set')
 
     args = parser.parse_args()
     main(args)
-    # Figure out what error rate we'll get with the capacity and/or memory
-
-    m = args.memory or -1 * (RECORDS * (np.log(ERROR_RATE))) / (np.log(2) ** 2)
-    n = args.num_records or RECORDS
-    error_rate = args.error_rate or ERROR_RATE
-
-    print(m)
-    print(np.log(2))
-    print(m/n)
-    k = np.log(2) * (m / n)
-    print(ERROR_RATE, m, k)
-
-
-
