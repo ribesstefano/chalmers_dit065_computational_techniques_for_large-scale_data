@@ -48,19 +48,31 @@ def main(args):
     conf = SparkConf()
     conf.setMaster('local[16]')
     conf.setAppName('your-spark-app')
-    conf.set('spark.local.dir', '/data/tmp/')
+    conf.set('spark.local.dir', '/tmp/')
     sc = SparkContext.getOrCreate(conf)
 
     dist_file = sc.textFile(args.filename)
     regex = re.compile('[^a-zA-Z ]')
 
     # TODO(Stefano): The reduce is merging the sets, but it's terribly slow...
-    unique_words = dist_file.map(lambda line: regex.sub('', line.lower()).split(' ')) \
-                            .map(lambda word_list: set(word_list)) \
-                            .reduce(operator.or_)
+    # unique_words = dist_file.map(lambda line: regex.sub('', line.lower()).split(' ')) \
+    #                         .map(lambda word_list: set(word_list)) \
+    #                         .reduce(operator.or_)
+
+    unique_words = dist_file \
+        .flatMap(lambda line: regex.sub('', line.lower()).split(' ')) \
+        .filter(lambda word: len(word) > 0) \
+        .groupBy(lambda word: word[0]) \
+
+    sorted_words_by_letter = unique_words.reduceByKey(lambda letter, words: (letter, sorted(words)))
+    sets = unique_words.reduceByKey(lambda letter, words: (letter, set(words)))
+
+    for letter, words in sets.collect():
+        print(letter, words.data)
+        # .reduceByKey(lambda word: (word, 1)).collect()
 
     # unique_words_list = unique_words # .collect()
-    print(unique_words)
+
 
     # values = dist_file.map(lambda l: l.split('\t')) \
     #     .map(lambda t: float(t[2]))
@@ -100,8 +112,8 @@ def main(args):
 
 
 if __name__ == '__main__':
-    data_dir = '/data/2022-DIT065-DAT470/gutenberg/'
-    sample_file = data_dir + '060/06049.txt'
+    data_dir = './data/'
+    sample_file = data_dir + '00001.txt'
 
     parser = argparse.ArgumentParser(description='Using PySpark to obtain descriptive statistics')
     parser.add_argument('--num-cores',
