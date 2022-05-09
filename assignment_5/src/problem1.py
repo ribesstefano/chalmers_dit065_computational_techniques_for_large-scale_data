@@ -34,17 +34,19 @@ import operator
 from operator import add
 
 import findspark
+
 findspark.init()
 
 import pyspark
 from pyspark import SparkContext
 from pyspark import SparkConf
 
-BINS = 10
 
 def main(args):
     path, context, cores = args.filename, args.runner, args.num_cores
+    # ==========================================================================
     # Config and start Spark
+    # ==========================================================================
     conf = SparkConf()
     conf.setMaster('local[16]')
     conf.setAppName('your-spark-app')
@@ -58,78 +60,81 @@ def main(args):
     words = dist_file \
         .flatMap(lambda line: regex.sub('', line.lower()).split(' ')) \
         .filter(lambda word: len(word) > 0)
+    words_per_letter = words.groupBy(lambda word: word[0])
     # ==========================================================================
     # Obtain unique words, grouped by: <letter, list of words>
     # ==========================================================================
-    remove_duplicates = lambda letter, words: (letter, set(words))
-    unique_words = words.groupBy(lambda word: word[0]) \
-                        .groupByKey(remove_duplicates)
+    remove_duplicates = lambda letter, words: (letter, list(set(words)))
+    unique_words = words_per_letter.flatMap(remove_duplicates)
     # ==========================================================================
     # Count unique words
     # ==========================================================================
-    word_counts = unique_words.reduceByKey(lambda letter, words: len(words)) \
+    word_counts = unique_words.reduceByKey(lambda w1, w2: len(w1) + len(w2)) \
                               .reduce(operator.add)
     print(f'Number of unique words: {word_counts}')
     # ==========================================================================
     # Average word length
     # ==========================================================================
-    words_len = words.map(lambda word: len(word))
-    words_len_count = words_len.count()
+    # words_len = words.map(lambda word: len(word))
+    # words_len_count = words_len.count()
+    # words_len_sum = words_len.reduce(operator.add)
+    # print(f'Average word length: {words_len_sum / words_len_count}')
+
+    # Parallelize letter-wise the words length and count
+    words_len = words_per_letter.reduceByKey(lambda w1, w2: len(w1) + len(w2))
     words_len_sum = words_len.reduce(operator.add)
+    words_len_count = words_per_letter.countByKey().reduce(operator.add)
     print(f'Average word length: {words_len_sum / words_len_count}')
     # ==========================================================================
-    # Average prefix length (TODO)
+    # Average prefix length
     # ==========================================================================
-    sort_set = lambda letter, words: (letter, sorted(words))
-    sorted_words_by_letter = unique_words.groupByKey(sort_set)
+    sort_words = lambda letter, words: (letter, sorted(words))
+    sorted_words_by_letter = unique_words.flatMap(sort_words)
+    def extract_prefixes(letter, sorted_words):
+        '''
+        Extract a list of prefixes per alphabetic letter
+        
+        :param      letter:         The alphabet letter (key)
+        :type       letter:         str
+        :param      sorted_words:   The list of sorted words
+        :type       sorted_words:   list
+        
+        :returns:   A list of prefixes
+        :rtype:     list
+        '''
+        prefixes = set()
+        for w1, w2 in zip(sorted_words, sorted_words[1:])
+            prefixes.add(os.path.commonprefix([w1, w2]))
+        return (letter, list(prefixes))
+    prefixes = sorted_words_by_letter.flatMap(extract_prefixes)
+    prefixes_len = prefixes.reduceByKey(lambda w1, w2: len(w1) + len(w2))
+    prefixes_len = prefixes_len.reduce(operator.add)
+    # prefixes_len = prefixes.map(lambda prefix: len(prefix)).reduce(operator.add)
 
-    # for letter, words in sorted_words_by_letter.collect():
-    #     print(letter, words.data)
-        # .reduceByKey(lambda word: (word, 1)).collect()
+    prefixes_count = prefixes.map(lambda letter, prefixes: (letter, len(prefixes)))
+    prefixes_count = prefixes_count.reduce(operator.add)
+    print(f'Average prefix length: {prefixes_len / prefixes_count}')
 
-    # unique_words_list = unique_words # .collect()
-
-
-    # values = dist_file.map(lambda l: l.split('\t')) \
-    #     .map(lambda t: float(t[2]))
-
-    # low = values.min()
-    # high = values.max()
-
-    # count = values.count()
-    # sum_ = values.sum()
-    # mean = sum_ / count
-
-    # variance_sum = values\
-    #     .map(lambda x: (x - mean) ** 2) \
-    #     .reduce(add)
-
-    # std_dev = math.sqrt(variance_sum / count)
-
-    # bin_size = (high - low) / BINS
-    # bins = values \
-    #     .map(lambda v: ((v - low) // bin_size, 1)) \
-    #     .reduceByKey(add)\
-    #     .sortByKey()
-
-    # # Since we know the amount in each bin, we can figure out which bin the
-    # # median is in, which means smaller sort
-    # bins_list = bins.collect()
-
-    # output = f"The following statistics were obtained:\n" \
-    #          f"Mean: {mean}\n" \
-    #          f"Std Dev: {std_dev}\n" \
-    #          f"Min: {low}\n" \
-    #          f"Max: {high}\n" \
-    #          f"The distribution of the bins was:\n"
-
-    # output += '\n'.join([f'Bin {int(i)}: {val}' for i, val in bins_list])
-    # print(output)
+    # # ==========================================================================
+    # # Huw's Method
+    # # ==========================================================================
+    # def extract_prefixes(letter, unique_words):
+    #     prefixes_counter = Counter()
+    #     for word in unique_words:
+    #         prefix = ''
+    #         for letter in word:
+    #             prefix += letter
+    #             prefix_counter.update([prefix])
+    #     return (letter, prefixes_counter)
+    # prefixes_counter = unique_words.map(extract_prefixes)
+    # prefixes_len = prefixes.map(lambda prefix: len(prefix)).reduce(operator.add)
+    # prefixes_count = prefixes.count()
+    # print(f'Average prefix length: {prefixes_len / prefixes_count}')
 
 
 if __name__ == '__main__':
-    data_dir = './data/'
-    sample_file = data_dir + '00001.txt'
+    data_dir = '/data/2022-DIT065-DAT470/gutenberg/'
+    sample_file = data_dir + '060/06049.txt'
 
     parser = argparse.ArgumentParser(description='Using PySpark to obtain descriptive statistics')
     parser.add_argument('--num-cores',
