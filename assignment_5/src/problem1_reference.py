@@ -86,16 +86,17 @@ def main(sample_file):
         os.path.commonprefix([sorted_words[-2], sorted_words[-1]]))
     # 3. Once the set is built, sum the len of each prefix into an accumulator
     avg_len = sum(map(len, common_prefixes))
+    print(avg_len, 'prefixes_len')
     # 4. Divide the accumulator by the number of found prefixes, i.e. len(set)
     avg_len /= len(common_prefixes)
     print(f'avg_prefix_len\t{avg_len}')
     # print(common_prefixes)
 
-    # Checking and comparing the analysis on each line...
-    avg_len_test = sum(map(len, test_set))
-    avg_len_test /= len(test_set)
-    matching = 'not matching' if avg_len_test != avg_len else 'matching'
-    print(f'avg_prefix_len\t{avg_len_test} ({matching})')
+    # # Checking and comparing the analysis on each line...
+    # avg_len_test = sum(map(len, test_set))
+    # avg_len_test /= len(test_set)
+    # matching = 'not matching' if avg_len_test != avg_len else 'matching'
+    # print(f'avg_prefix_len\t{avg_len_test} ({matching})')
 
     # ==========================================================================
     # Huw's method

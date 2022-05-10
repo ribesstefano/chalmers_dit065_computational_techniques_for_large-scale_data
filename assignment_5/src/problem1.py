@@ -60,83 +60,47 @@ def main(args):
     words = dist_file \
         .flatMap(lambda line: regex.sub('', line.lower()).split(' ')) \
         .filter(lambda word: len(word) > 0)
-    words_per_letter = words.groupBy(lambda word: word[0])
-    # ==========================================================================
-    # Obtain unique words, grouped by: <letter, list of words>
-    # ==========================================================================
-    remove_duplicates = lambda letter, words: (letter, list(set(words)))
-    unique_words = words_per_letter.flatMap(remove_duplicates)
     # ==========================================================================
     # Count unique words
     # ==========================================================================
-    word_counts = unique_words.reduceByKey(lambda w1, w2: len(w1) + len(w2)) \
-                              .reduce(operator.add)
-    print(f'Number of unique words: {word_counts}')
+    word_counts = words.distinct().count()
+    print(f'Number of unique words: {word_counts + 1} (including empty word "")')
     # ==========================================================================
     # Average word length
     # ==========================================================================
-    # words_len = words.map(lambda word: len(word))
-    # words_len_count = words_len.count()
-    # words_len_sum = words_len.reduce(operator.add)
-    # print(f'Average word length: {words_len_sum / words_len_count}')
-
-    # Parallelize letter-wise the words length and count
-    words_len = words_per_letter.reduceByKey(lambda w1, w2: len(w1) + len(w2))
+    words_len = words.map(lambda word: len(word))
+    words_len_count = words_len.count()
     words_len_sum = words_len.reduce(operator.add)
-    words_len_count = words_per_letter.countByKey().reduce(operator.add)
     print(f'Average word length: {words_len_sum / words_len_count}')
     # ==========================================================================
     # Average prefix length
     # ==========================================================================
-    sort_words = lambda letter, words: (letter, sorted(words))
-    sorted_words_by_letter = unique_words.flatMap(sort_words)
-    def extract_prefixes(letter, sorted_words):
-        '''
-        Extract a list of prefixes per alphabetic letter
-        
-        :param      letter:         The alphabet letter (key)
-        :type       letter:         str
-        :param      sorted_words:   The list of sorted words
-        :type       sorted_words:   list
-        
-        :returns:   A list of prefixes
-        :rtype:     list
-        '''
-        prefixes = set()
-        for w1, w2 in zip(sorted_words, sorted_words[1:])
-            prefixes.add(os.path.commonprefix([w1, w2]))
-        return (letter, list(prefixes))
-    prefixes = sorted_words_by_letter.flatMap(extract_prefixes)
-    prefixes_len = prefixes.reduceByKey(lambda w1, w2: len(w1) + len(w2))
-    prefixes_len = prefixes_len.reduce(operator.add)
-    # prefixes_len = prefixes.map(lambda prefix: len(prefix)).reduce(operator.add)
-
-    prefixes_count = prefixes.map(lambda letter, prefixes: (letter, len(prefixes)))
-    prefixes_count = prefixes_count.reduce(operator.add)
-    print(f'Average prefix length: {prefixes_len / prefixes_count}')
-
-    # # ==========================================================================
-    # # Huw's Method
-    # # ==========================================================================
-    # def extract_prefixes(letter, unique_words):
-    #     prefixes_counter = Counter()
-    #     for word in unique_words:
-    #         prefix = ''
-    #         for letter in word:
-    #             prefix += letter
-    #             prefix_counter.update([prefix])
-    #     return (letter, prefixes_counter)
-    # prefixes_counter = unique_words.map(extract_prefixes)
-    # prefixes_len = prefixes.map(lambda prefix: len(prefix)).reduce(operator.add)
-    # prefixes_count = prefixes.count()
-    # print(f'Average prefix length: {prefixes_len / prefixes_count}')
+    # Group words by letter and sort sublists 
+    words_per_letter = words.distinct().groupBy(lambda word: word[0])
+    sort_words = lambda letter_words: (letter_words[0], sorted(letter_words[1]))
+    sorted_words_by_letter = words_per_letter.map(sort_words)
+    # Extract prefixes from sorted sublists
+    extract_prefixes = lambda x: (x[0],
+        [os.path.commonprefix([w1, w2]) for w1, w2 in zip(x[1], x[1][1:])])
+    remove_duplicates = lambda x: (x[0], list(set(x[1])))
+    prefixes = sorted_words_by_letter.map(extract_prefixes) \
+                                     .map(remove_duplicates)
+    # Finally, get the requested statistics
+    prefixes_len = prefixes.map(lambda x: sum([len(w) for w in x[1]])) \
+                           .reduce(operator.add)
+    prefixes_count = prefixes.map(lambda letter_prefix: len(letter_prefix[1])) \
+                             .reduce(operator.add)
+    # NOTE: We are adding +1 to consider the empty word '', which was considered
+    # in the provided example and which doesn't show up in the above computation
+    print(f'Average prefix length: {prefixes_len / (prefixes_count+1)}')
 
 
 if __name__ == '__main__':
     data_dir = '/data/2022-DIT065-DAT470/gutenberg/'
     sample_file = data_dir + '060/06049.txt'
+    program_description = 'Using PySpark to obtain descriptive statistics'
 
-    parser = argparse.ArgumentParser(description='Using PySpark to obtain descriptive statistics')
+    parser = argparse.ArgumentParser(description=program_description)
     parser.add_argument('--num-cores',
                         default='4',
                         type=int,
