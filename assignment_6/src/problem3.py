@@ -39,10 +39,10 @@ def main(args):
         Possible other method: Stochastic Collocation Monte Carlo sampler (SCMC
         sampler).
         '''
-        cumsum = cdf if cdf is not None else np.cumsum(p)
+        cumulative_distribution = cdf if cdf is not None else np.cumsum(p)
         # Use inverse of the CDF function
-        rdm_unif = np.random.rand(n)
-        return keys[np.searchsorted(cumsum, rdm_unif)]
+        uniform_rand_var = np.random.rand(n)
+        return keys[np.searchsorted(cumulative_distribution, uniform_rand_var)]
 
     def python_random(keys, n, p):
         '''
@@ -50,31 +50,19 @@ def main(args):
         slow, i.e. it utilizes two nested for-loops...
         '''
         sampled_keys = []
-        cumsum = np.cumsum(p)
+        cumulative_distribution = np.cumsum(p)
         for i in range(n):
             rand = random.uniform(0, 1)
-            for j, pj in enumerate(cumsum):
+            for j, pj in enumerate(cumulative_distribution):
                 if rand < pj:
                     sampled_keys.append(keys[j])
                     break
         return np.array(sampled_keys)
     # ==========================================================================
-    # Testing timing
-    # ==========================================================================
-    '''
-    n_runs = 10000
-    seq_t = timeit.timeit(lambda: serial_random(keys, n, p), number=n_runs)
-    py_t = timeit.timeit(lambda: python_random(keys, n, p), number=n_runs)
-    numpy_t = timeit.timeit(lambda: numpy_random(keys, n, p), number=n_runs)
-    print(f'Average time Serial impl.: {seq_t / n_runs * 1000:.4f} ms')
-    print(f'Average time Python impl.: {py_t / n_runs * 1000:.4f} ms')
-    print(f'Average time Numpy impl.:  {numpy_t / n_runs * 1000:.4f} ms')
-    '''
-    # ==========================================================================
     # Checking correctness
     # ==========================================================================
     '''
-    n = 6
+    n = 8
     keys = np.random.randn(n)**2
     p = np.random.randn(n)**2
     p /= p.sum()
@@ -83,10 +71,10 @@ def main(args):
     np_sum = np.zeros(n)
     cdf = np.cumsum(p)
     for _ in range(n_runs):
-        for k in serial_random(keys, n, p, cdf):
+        for k in serial_random(keys, n // 2, p, cdf):
             py_sum[np.where(k == keys)] += 1
 
-        for k in numpy_random(keys, n, p):
+        for k in numpy_random(keys, n // 2, p):
             np_sum[np.where(k == keys)] += 1
 
     fig, ax = plt.subplots()
@@ -111,38 +99,66 @@ def main(args):
     plt.grid(which='both', axis='y', alpha=0.7, zorder=1)
     plt.legend()
     plt.tight_layout()
-    # plt.savefig(filename)
-    plt.show()
+    plt.savefig('probelm3_correctness_check.pdf')
+    # plt.show()
     '''
     # ==========================================================================
     # Read keys, frequency pairs from file and compute p
     # ==========================================================================
     # TODO(Stefano): The results from reading the frequencies from the file
     # shouldn't differ much from the random tests I've performed...
-
+    k_list = []
+    f_list = []
+    print(f'Reading file: {args.filename}')
+    with open(args.filename, 'r') as f:
+        for line in f:
+            k, f = line.split(' ')
+            k_list.append(k)
+            f_list.append(float(f))
+    n = len(f_list)
+    keys = np.array(k_list)
+    freq = np.array(f_list)
+    p = freq / np.sum(freq)
+    print(f'n = {n}')
+    print(f'keys = {keys}')
+    print(f'p = {p}')
+    # ==========================================================================
+    # Testing timing
+    # ==========================================================================
+    '''
+    n_runs = 1
+    n = 100
+    seq_t = timeit.timeit(lambda: serial_random(keys, n, p), number=n_runs)
+    py_t = timeit.timeit(lambda: python_random(keys, n, p), number=n_runs)
+    numpy_t = timeit.timeit(lambda: numpy_random(keys, n, p), number=n_runs)
+    print(f'Average time Serial impl.: {seq_t / n_runs * 1000:.4f} ms')
+    print(f'Average time Python impl.: {py_t / n_runs * 1000:.4f} ms')
+    print(f'Average time Numpy impl.:  {numpy_t / n_runs * 1000:.4f} ms')
+    '''
     # ==========================================================================
     # Measuring timing for different sample sizes
     # ==========================================================================
-    n_runs = 10000
+    n_runs = 100
     n_values = []
     seq_time = []
     np_time = []
-    for n in range(0, 6000, 500):
+    for n in range(0, 600, 100):
         if n == 0:
-            continue
-        print(f'Measuring n = {n}')
-        # Init keys and p values
-        keys = np.random.randn(n)**2
-        p = np.random.randn(n)**2
-        p /= p.sum()
+            n = 50
+        print(f'Measuring n = {n}', end='')
+        # # Init keys and p values
+        # keys = np.random.randn(n)**2
+        # p = np.random.randn(n)**2
+        # p /= p.sum()
         # Measure time
         cdf = np.cumsum(p) # NOTE: Precompute the CDF
         seq_t = timeit.timeit(lambda: serial_random(keys, n, p, cdf), number=n_runs)
         np_t = timeit.timeit(lambda: numpy_random(keys, n, p), number=n_runs)
         # Collect sample rate
         n_values.append(n)
-        seq_time.append(n / seq_t) # seq_t / n_runs * 1000000)
-        np_time.append(n / np_t) # np_t / n_runs * 1000000)
+        seq_time.append(n / (seq_t / n_runs))
+        np_time.append(n / (np_t / n_runs))
+        print(f' - serial: {n / (seq_t / n_runs):.2f} - numpy: {n / (np_t / n_runs):.2f} [samples/s]')
     # Plotting
     use_bar_plot = False
     if not use_bar_plot:
@@ -169,10 +185,13 @@ def main(args):
     plt.ylabel('Sample Rate [sample/s]')
     plt.title('Numpy vs. Serial Implementation Timing')
     plt.grid(which='both', axis='y', alpha=0.7, zorder=1)
+    plt.yscale('log')
     plt.legend()
     plt.tight_layout()
-    # plt.savefig(filename)
-    plt.show()
+    plt.savefig('problem3.pdf')
+    # plt.show()
+    '''
+    '''
 
 
 if '__main__':
